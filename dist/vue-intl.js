@@ -12,8 +12,121 @@
   var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) {
     return typeof obj;
   } : function (obj) {
-    return obj && typeof Symbol === "function" && obj.constructor === Symbol ? "symbol" : typeof obj;
+    return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
   };
+
+  var asyncGenerator = function () {
+    function AwaitValue(value) {
+      this.value = value;
+    }
+
+    function AsyncGenerator(gen) {
+      var front, back;
+
+      function send(key, arg) {
+        return new Promise(function (resolve, reject) {
+          var request = {
+            key: key,
+            arg: arg,
+            resolve: resolve,
+            reject: reject,
+            next: null
+          };
+
+          if (back) {
+            back = back.next = request;
+          } else {
+            front = back = request;
+            resume(key, arg);
+          }
+        });
+      }
+
+      function resume(key, arg) {
+        try {
+          var result = gen[key](arg);
+          var value = result.value;
+
+          if (value instanceof AwaitValue) {
+            Promise.resolve(value.value).then(function (arg) {
+              resume("next", arg);
+            }, function (arg) {
+              resume("throw", arg);
+            });
+          } else {
+            settle(result.done ? "return" : "normal", result.value);
+          }
+        } catch (err) {
+          settle("throw", err);
+        }
+      }
+
+      function settle(type, value) {
+        switch (type) {
+          case "return":
+            front.resolve({
+              value: value,
+              done: true
+            });
+            break;
+
+          case "throw":
+            front.reject(value);
+            break;
+
+          default:
+            front.resolve({
+              value: value,
+              done: false
+            });
+            break;
+        }
+
+        front = front.next;
+
+        if (front) {
+          resume(front.key, front.arg);
+        } else {
+          back = null;
+        }
+      }
+
+      this._invoke = send;
+
+      if (typeof gen.return !== "function") {
+        this.return = undefined;
+      }
+    }
+
+    if (typeof Symbol === "function" && Symbol.asyncIterator) {
+      AsyncGenerator.prototype[Symbol.asyncIterator] = function () {
+        return this;
+      };
+    }
+
+    AsyncGenerator.prototype.next = function (arg) {
+      return this._invoke("next", arg);
+    };
+
+    AsyncGenerator.prototype.throw = function (arg) {
+      return this._invoke("throw", arg);
+    };
+
+    AsyncGenerator.prototype.return = function (arg) {
+      return this._invoke("return", arg);
+    };
+
+    return {
+      wrap: function (fn) {
+        return function () {
+          return new AsyncGenerator(fn.apply(this, arguments));
+        };
+      },
+      await: function (value) {
+        return new AwaitValue(value);
+      }
+    };
+  }();
 
   /**
    * Utility functions.
@@ -293,7 +406,7 @@
           parts = [];
 
       if (isInfinity) {
-          formatedText = '∞';
+          formatedText = '\u221E';
       }
 
       if (!isInfinity && numStr.indexOf('e') !== -1) {
@@ -391,7 +504,7 @@
 
   var PLURAL_CACHE = {};
   var PLURAL_CATEGORY = { ZERO: 'zero', ONE: 'one', TWO: 'two', FEW: 'few', MANY: 'many', OTHER: 'other' };
-  var PLURAL_LOCALES = [['en'], ['af', 'az', 'bg', 'chr', 'el', 'es', 'eu', 'gsw', 'haw', 'hu', 'ka', 'kk', 'ky', 'ml', 'mn', 'nb', 'ne', 'no', 'or', 'sq', 'ta', 'te', 'tr', 'uz'], ['am', 'bn', 'fa', 'gu', 'hi', 'kn', 'mr', 'zu'], ['ar'], ['be'], ['br'], ['bs', 'hr', 'sr'], ['cs', 'sk'], ['cy'], ['da'], ['fil', 'tl'], ['fr', 'hy'], ['ga'], ['he', 'iw'], ['id', 'in', 'ja', 'km', 'ko', 'lo', 'my', 'th', 'vi', 'zh'], ['is'], ['ln', 'pa'], ['lt'], ['lv'], ['mk'], ['ms'], ['mt'], ['pl'], ['pt'], ['ro'], ['ru', 'uk'], ['si'], ['sl']]; // END LOCALES
+  var PLURAL_LOCALES = [['en'], ['af', 'az', 'bg', 'chr', 'el', 'es', 'eu', 'gsw', 'haw', 'hu', 'ka', 'kk', 'ky', 'ml', 'mn', 'nb', 'ne', 'no', 'or', 'sq', 'ta', 'te', 'tr', 'uz'], ['am', 'bn', 'fa', 'gu', 'hi', 'kn', 'mr', 'zu'], ['ar'], ['be'], ['br'], ['bs', 'hr', 'sr'], ['cs', 'sk'], ['cy'], ['da'], ['fil', 'tl'], ['fr', 'hy'], ['ga'], ['he', 'iw'], ['id', 'in', 'ja', 'km', 'ko', 'lo', 'ms', 'my', 'th', 'vi', 'zh'], ['is'], ['ln', 'pa'], ['lt'], ['lv'], ['mk'], ['mt'], ['pl'], ['pt'], ['ro'], ['ru', 'uk'], ['si'], ['sl']]; // END LOCALES
   var PLURAL_RULES = [function (n, precision) {
       var i = n | 0;var vf = getVF(n, precision);if (i == 1 && vf.v == 0) {
           return PLURAL_CATEGORY.ONE;
@@ -518,8 +631,6 @@
       var i = n | 0;var vf = getVF(n, precision);if (vf.v == 0 && i % 10 == 1 || vf.f % 10 == 1) {
           return PLURAL_CATEGORY.ONE;
       }return PLURAL_CATEGORY.OTHER;
-  }, function (n) {
-      return PLURAL_CATEGORY.OTHER;
   }, function (n, precision) {
       if (n == 1) {
           return PLURAL_CATEGORY.ONE;
