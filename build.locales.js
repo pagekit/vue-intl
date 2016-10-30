@@ -62,7 +62,7 @@ global.angular = {
         }
 
         file = output + value.id + '.json';
-        data = JSON.stringify(value);
+        data = JSON.stringify(value, null, 2);
 
         fs.writeFileSync(file, data);
     }
